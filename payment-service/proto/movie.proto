@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "movie-service/proto/pb";
+
+service MovieService {
+  rpc GetShowtime(GetShowtimeRequest) returns (GetShowtimeResponse);
+  rpc GetShowtimes(GetShowtimesRequest) returns (GetShowtimesResponse);
+}
+
+message GetShowtimeRequest {
+  string id = 1;
+}
+
+message GetShowtimeResponse {
+  bool success = 1;
+  string message = 2;
+  ShowtimeData data = 3;
+}
+
+message GetShowtimesRequest {
+  repeated string ids = 1;
+}
+
+message GetShowtimesResponse {
+  bool success = 1;
+  string message = 2;
+  repeated ShowtimeData data = 3;
+}
+
+message ShowtimeData {
+  string id = 1;
+  string movie_id = 2;
+  string room_id = 3;
+  string showtime_date = 4;
+  string showtime_time = 5;
+  string movie_title = 6;
+  string room_number = 7;
+  repeated string seat_numbers = 8;
+}

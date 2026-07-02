@@ -1,0 +1,376 @@
+package crawl
+
+import (
+	"context"
+	"crypto/md5"
+	"encoding/xml"
+	"fmt"
+	"html"
+	"io"
+	"net/http"
+	"net/url"
+	"regexp"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+	"worker-service/internal/models"
+)
+
+type RSSFeed struct {
+	XMLName xml.Name `xml:"rss"`
+	Channel Channel  `xml:"channel"`
+}
+
+type Channel struct {
+	Title       string `xml:"title"`
+	Description string `xml:"description"`
+	Link        string `xml:"link"`
+	Items       []Item `xml:"item"`
+}
+
+type Item struct {
+	Title           string          `xml:"title"`
+	Link            string          `xml:"link"`
+	Description     string          `xml:"description"`
+	Content         string          `xml:"encoded"`
+	PubDate         string          `xml:"pubDate"`
+	Author          string          `xml:"author"`
+	GUID            string          `xml:"guid"`
+	MediaThumbnail  MediaThumbnail  `xml:"http://search.yahoo.com/mrss/ thumbnail"`
+	MediaContent    MediaContent    `xml:"http://search.yahoo.com/mrss/ content"`
+	Enclosure       Enclosure       `xml:"enclosure"`
+}
+
+type MediaThumbnail struct {
+	URL    string `xml:"url,attr"`
+	Width  string `xml:"width,attr"`
+	Height string `xml:"height,attr"`
+}
+
+type MediaContent struct {
+	URL    string `xml:"url,attr"`
+	Medium string `xml:"medium,attr"`
+	Type   string `xml:"type,attr"`
+}
+
+type Enclosure struct {
+	URL  string `xml:"url,attr"`
+	Type string `xml:"type,attr"`
+}
+
+// NewsSource defines a news source configuration
+type NewsSource struct {
+	Name     string
+	URL      string
+	Category string
+	Language string
+	Type     string // "rss" or "html"
+}
+
+// GetNewsSources returns all configured news sources
+func GetNewsSources() []NewsSource {
+	return []NewsSource{
+		// Vietnamese Sources - Using RSS feeds where available
+		{
+			Name:     "VnExpress Giải Trí",
+			URL:      "https://vnexpress.net/rss/giai-tri.rss",
+			Category: "domestic",
+			Language: "vi",
+			Type:     "rss",
+		},
+		{
+			Name:     "Tuổi Trẻ Giải Trí",
+			URL:      "https://tuoitre.vn/rss/giai-tri.rss",
+			Category: "domestic",
+			Language: "vi",
+			Type:     "rss",
+		},
+		{
+			Name:     "Thanh Niên Giải Trí",
+			URL:      "https://thanhnien.vn/rss/giai-tri.rss",
+			Category: "domestic",
+			Language: "vi",
+			Type:     "rss",
+		},
+		// International Sources
+		{
+			Name:     "Variety",
+			URL:      "https://variety.com/feed/",
+			Category: "international",
+			Language: "en",
+			Type:     "rss",
+		},
+		{
+			Name:     "The Hollywood Reporter",
+			URL:      "https://www.hollywoodreporter.com/feed/",
+			Category: "international",
+			Language: "en",
+			Type:     "rss",
+		},
+		{
+			Name:     "Deadline Hollywood",
+			URL:      "https://deadline.com/feed/",
+			Category: "international",
+			Language: "en",
+			Type:     "rss",
+		},
+		{
+			Name:     "IndieWire",
+			URL:      "https://www.indiewire.com/feed/",
+			Category: "international",
+			Language: "en",
+			Type:     "rss",
+		},
+	}
+}
+
+func FetchRSSFeed(ctx context.Context, url string) (*RSSFeed, error) {
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; CinemaBot/1.0)")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch RSS feed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	var feed RSSFeed
+	if err = xml.Unmarshal(body, &feed); err != nil {
+		return nil, fmt.Errorf("failed to parse RSS feed: %w", err)
+	}
+
+	return &feed, nil
+}
+
+func ParseRSSToArticles(feed *RSSFeed, source NewsSource) ([]*models.NewsArticle, error) {
+	articles := make([]*models.NewsArticle, 0, len(feed.Channel.Items))
+
+	for _, item := range feed.Channel.Items {
+		if item.Title == "" || item.Link == "" {
+			continue
+		}
+
+		var publishedAt *time.Time
+		if item.PubDate != "" {
+			parsed, err := parseDate(item.PubDate)
+			if err == nil {
+				publishedAt = &parsed
+			}
+		}
+
+		content := item.Content
+		if content == "" {
+			content = item.Description
+		}
+
+		content = stripHTMLTags(content)
+		content = cleanText(content)
+
+		articleID := generateIDFromURL(item.Link)
+
+		slug := generateSlug(item.Title)
+
+		imageURL := extractImageFromItem(item)
+
+		tags := extractTags(item.Title + " " + content)
+
+		now := time.Now()
+		article := &models.NewsArticle{
+			Id:          articleID,
+			Title:       cleanText(item.Title),
+			Slug:        slug,
+			Source:      source.Name,
+			SourceURL:   item.Link,
+			Author:      cleanText(item.Author),
+			Content:     content,
+			Summary:     "", // Will be generated by Gemini later
+			ImageURL:    imageURL,
+			Category:    source.Category,
+			Tags:        tags,
+			Language:    source.Language,
+			PublishedAt: publishedAt,
+			Status:      "PENDING", // pending for Gemini summarization
+			CreatedAt:   &now,
+			UpdatedAt:   &now,
+		}
+
+		articles = append(articles, article)
+	}
+
+	return articles, nil
+}
+
+func parseDate(dateStr string) (time.Time, error) {
+	formats := []string{
+		time.RFC1123Z,
+		time.RFC1123,
+		time.RFC822Z,
+		time.RFC822,
+		"Mon, 02 Jan 2006 15:04:05 -0700",
+		"Mon, 02 Jan 2006 15:04:05 MST",
+		"2006-01-02T15:04:05Z07:00",
+		"2006-01-02 15:04:05",
+	}
+
+	for _, format := range formats {
+		if t, err := time.Parse(format, dateStr); err == nil {
+			return t, nil
+		}
+	}
+
+	return time.Time{}, fmt.Errorf("unable to parse date: %s", dateStr)
+}
+
+func stripHTMLTags(html string) string {
+	re := regexp.MustCompile(`<[^>]*>`)
+	text := re.ReplaceAllString(html, "")
+
+	text = strings.ReplaceAll(text, "&nbsp;", " ")
+	text = strings.ReplaceAll(text, "&amp;", "&")
+	text = strings.ReplaceAll(text, "&lt;", "<")
+	text = strings.ReplaceAll(text, "&gt;", ">")
+	text = strings.ReplaceAll(text, "&quot;", "\"")
+	text = strings.ReplaceAll(text, "&#39;", "'")
+
+	text = strings.TrimSpace(text)
+	re = regexp.MustCompile(`\s+`)
+	text = re.ReplaceAllString(text, " ")
+
+	return text
+}
+
+func generateIDFromURL(url string) string {
+	hash := md5.Sum([]byte(url))
+	return uuid.NewMD5(uuid.NameSpaceURL, hash[:]).String()
+}
+
+func generateSlug(title string) string {
+	slug := strings.ToLower(title)
+
+	re := regexp.MustCompile(`[^\p{L}\p{N}\s-]`)
+	slug = re.ReplaceAllString(slug, "")
+
+	slug = strings.ReplaceAll(slug, " ", "-")
+
+	re = regexp.MustCompile(`-+`)
+	slug = re.ReplaceAllString(slug, "-")
+
+	slug = strings.Trim(slug, "-")
+
+	if len(slug) > 100 {
+		slug = slug[:100]
+	}
+
+	return slug
+}
+
+func extractImageFromItem(item Item) string {
+	if item.MediaThumbnail.URL != "" {
+		return item.MediaThumbnail.URL
+	}
+
+	if item.MediaContent.URL != "" {
+		if item.MediaContent.Medium == "image" ||
+		   strings.Contains(item.MediaContent.Type, "image") {
+			return item.MediaContent.URL
+		}
+		if isImageURL(item.MediaContent.URL) {
+			return item.MediaContent.URL
+		}
+	}
+
+	if item.Enclosure.URL != "" && strings.Contains(item.Enclosure.Type, "image") {
+		return item.Enclosure.URL
+	}
+
+	imageURL := extractImageURL(item.Content)
+	if imageURL != "" {
+		return imageURL
+	}
+
+	return extractImageURL(item.Description)
+}
+
+func isImageURL(url string) bool {
+	lower := strings.ToLower(url)
+	imageExts := []string{".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp"}
+	for _, ext := range imageExts {
+		if strings.Contains(lower, ext) {
+			return true
+		}
+	}
+	return false
+}
+
+func extractImageURL(html string) string {
+	patterns := []string{
+		`<img[^>]+src=["']([^"']+)["']`,
+		`<img[^>]+src=([^\s>]+)`,
+	}
+
+	for _, pattern := range patterns {
+		re := regexp.MustCompile(pattern)
+		matches := re.FindStringSubmatch(html)
+		if len(matches) > 1 {
+			return matches[1]
+		}
+	}
+
+	return ""
+}
+
+func extractTags(text string) []string {
+	movieKeywords := []string{
+		"phim", "movie", "film", "cinema", "box office", "premiere",
+		"trailer", "review", "actor", "actress", "director", "hollywood",
+		"điện ảnh", "rạp chiếu", "đạo diễn", "diễn viên", "khởi chiếu",
+	}
+
+	tags := make([]string, 0)
+	lowerText := strings.ToLower(text)
+
+	for _, keyword := range movieKeywords {
+		if strings.Contains(lowerText, keyword) {
+			tags = append(tags, keyword)
+		}
+	}
+
+	if len(tags) > 10 {
+		tags = tags[:10]
+	}
+
+	return tags
+}
+
+func cleanText(text string) string {
+	urlDecoded, err := url.QueryUnescape(text)
+	if err != nil {
+		urlDecoded = text
+	}
+
+	htmlDecoded := html.UnescapeString(urlDecoded)
+
+	htmlDecoded = strings.TrimSpace(htmlDecoded)
+	re := regexp.MustCompile(`\s+`)
+	htmlDecoded = re.ReplaceAllString(htmlDecoded, " ")
+
+	return htmlDecoded
+}

@@ -1,0 +1,152 @@
+server:
+  port: "8000"
+  host: "0.0.0.0"
+  read_timeout: 30
+  write_timeout: 30
+  idle_timeout: 120
+
+services:
+  auth_service:
+    url: "http://auth-service:3001"
+    health_check_path: "/api/v1/health"
+    timeout: 30
+    retries: 3
+    load_balancer: []
+    
+  movie_service:
+    url: "http://movie-service:8083"
+    health_check_path: "/api/v1/health"
+    timeout: 30
+    retries: 3
+    load_balancer: []
+    
+  booking_service:
+    url: "http://booking-service:8082"
+    health_check_path: "/api/v1/health"
+    timeout: 30
+    retries: 3
+    load_balancer: []
+    
+  user_service:
+    url: "http://user-service:8005"
+    health_check_path: "/api/v1/health"
+    timeout: 30
+    retries: 3
+    load_balancer: []
+    
+  notification_service:
+    url: "http://notification-service:8080"
+    health_check_path: "/api/v1/health"
+    timeout: 30
+    retries: 3
+    load_balancer: []
+
+  payment_service:
+    url: "http://payment-service:8086"
+    health_check_path: "/api/v1/health"
+    timeout: 30
+    retries: 3
+    load_balancer: []
+
+  analytics_service:
+    url: "http://analytics-service:8087"
+    health_check_path: "/health"
+    timeout: 30
+    retries: 3
+    load_balancer: []
+
+  chatbot:
+    url: "http://chatbot:8089"
+    health_check_path: "/health"
+    timeout: 30
+    retries: 3
+    load_balancer: []
+
+redis:
+  host: "redis"
+  address: "redis:6379"
+  password: ""
+  db: 0
+
+auth:
+  jwt_secret: "your-secret-key-here"
+  jwt_expires_in: "24h"
+  refresh_token_expires_in: "168h"
+  public_paths:
+    - "/api/v1/health"
+    - "/api/gateway/info"
+    - "/api/v1/auth/login"
+    - "/api/v1/auth/register"
+    - "/api/v1/auth/verify"
+    - "/api/v1/auth/refresh"
+    - "/api/v1/movies/*"
+    - "/api/v1/showtimes/*"
+    - "/api/v1/bookings/*"
+    - "/api/v1/payments"
+    - "/api/v1/payments/*"
+    - "/api/v1/webhooks/*"
+    - "/api/v1/chatbot/*"
+  admin_paths:
+    - "/api/v1/analytics/*"
+
+rate_limiter:
+  enabled: true
+  requests_per_minute: 100
+  burst: 10
+  cleanup_interval: "1m"
+
+cors:
+  enabled: true
+  allowed_origins:
+    - "http://localhost:3000"
+    - "http://localhost:80"
+    - "http://frontend:80"
+  allowed_methods:
+    - "GET"
+    - "POST"
+    - "PUT"
+    - "DELETE"
+    - "OPTIONS"
+  allowed_headers:
+    - "Content-Type"
+    - "Authorization"
+    - "X-Requested-With"
+  allow_credentials: true
+  max_age: 86400
+
+logging:
+  level: "info"
+  format: "json"
+  output: "stdout"
+
+metrics:
+  enabled: true
+  path: "/metrics"
+  port: "9090"
+
+tracing:
+  enabled: false
+  jaeger_endpoint: "http://jaeger:14268/api/traces"
+  service_name: "api-gateway"
+  sample_rate: 0.1
+
+circuit_breaker:
+  enabled: true
+  failure_threshold: 5
+  timeout: 60
+  max_requests: 3
+  interval: 10
+
+retry:
+  max_attempts: 3
+  initial_delay: 100
+  max_delay: 1000
+  multiplier: 2.0
+
+timeout:
+  default: 30
+  auth_service: 30
+  movie_service: 30
+  booking_service: 30
+  user_service: 30
+  notification_service: 30

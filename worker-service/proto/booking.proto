@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "worker-service/proto/pb";
+
+service BookingService {
+  rpc UpdateBookingStatus(UpdateBookingStatusRequest) returns (UpdateBookingStatusResponse);
+  rpc CreateTickets(CreateTicketsRequest) returns (CreateTicketsResponse);
+}
+
+message UpdateBookingStatusRequest {
+  string booking_id = 1;
+  string status = 2;
+}
+
+message UpdateBookingStatusResponse {
+  bool success = 1;
+  string message = 2;
+  string user_id = 3;
+  string booking_id = 4;
+}
+
+message CreateTicketsRequest {
+  string booking_id = 1;
+  repeated string seat_ids = 2;
+}
+
+message CreateTicketsResponse {
+  bool success = 1;
+  string message = 2;
+  int32 tickets_created = 3;
+  BookingDetails booking_details = 4;
+}
+
+message BookingDetails {
+  string booking_id = 1;
+  string user_email = 2;
+  repeated SeatInfo seats = 3;
+  ShowtimeInfo showtime = 4;
+}
+
+message SeatInfo {
+  string seat_row = 1;
+  int32 seat_number = 2;
+  string seat_type = 3;
+}
+
+message ShowtimeInfo {
+  string showtime_id = 1;
+  string start_time = 2;
+  string movie_name = 3;
+  string room_name = 4;
+}

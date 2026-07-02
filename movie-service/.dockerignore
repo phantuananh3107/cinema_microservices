@@ -1,0 +1,17 @@
+.git
+*.md
+*.log
+*.env
+Dockerfile
+.dockerignore
+build/
+tmp/
+vendor/
+node_modules/
+*.sh
+*.bak
+*.swp
+test/
+.idea/
+.vscode/
+*.pem

@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "worker-service/proto/pb";
+
+service OutboxService {
+  rpc CreateOutboxEvent(CreateOutboxEventRequest) returns (CreateOutboxEventResponse);
+}
+
+message CreateOutboxEventRequest {
+  string event_type = 1;
+  string payload = 2;
+}
+
+message CreateOutboxEventResponse {
+  bool success = 1;
+  string message = 2;
+  int32 event_id = 3;
+}
+

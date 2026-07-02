@@ -1,0 +1,10 @@
+export const CACHE_TTL_5_SEC = 5 * 1000
+export const CACHE_TTL_15_SEC = 15 * 1000
+export const CACHE_TTL_1_MIN = 60 * 1000
+export const CACHE_TTL_5_MINS = 5 * 60 * 1000
+export const CACHE_TTL_15_MINS = 15 * 60 * 1000
+export const CACHE_TTL_30_MINS = 30 * 60 * 1000
+export const CACHE_TTL_1_HOUR = 60 * 60 * 1000
+export const CACHE_TTL_6_HOUR = 6 * 60 * 60 * 1000
+export const CACHE_TTL_12_HOUR = 12 * 60 * 60 * 1000
+export const CACHE_TTL_1_DAY = 24 * 60 * 60 * 1000

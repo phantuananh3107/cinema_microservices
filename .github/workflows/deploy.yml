@@ -1,0 +1,34 @@
+name: Deploy To Server
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Inject env files
+        run: |
+          cp /home/quangnguyen/cinema-env/analytics-service.env analytics-service/.env
+          cp /home/quangnguyen/cinema-env/api-gateway.env api-gateway/.env
+          cp /home/quangnguyen/cinema-env/auth-service.env auth-service/.env
+          cp /home/quangnguyen/cinema-env/booking-service.env booking-service/.env
+          cp /home/quangnguyen/cinema-env/chatbot-service.env chatbot/.env
+          cp /home/quangnguyen/cinema-env/movie-service.env movie-service/.env
+          cp /home/quangnguyen/cinema-env/payment-service.env payment-service/.env
+          cp /home/quangnguyen/cinema-env/user-service.env user-service/.env
+          cp /home/quangnguyen/cinema-env/worker-service.env worker-service/.env
+          cp /home/quangnguyen/cinema-env/notification-service.env notification-service/.env
+          cp /home/quangnguyen/cinema-env/frontend.env FE/.env
+
+      - name: Deploy with Docker Compose
+        run: |
+          docker compose up -d --build
+          docker compose ps

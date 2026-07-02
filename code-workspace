@@ -1,0 +1,21 @@
+{
+  "folders": [
+    {
+      "name": "smart-kitchen-ai",
+      "path": "smart-kitchen-ai"
+    },
+    {
+      "name": "smart-kitchen-backend",
+      "path": "smart-kitchen-backend"
+    },
+    {
+      "name": "smart-kitchen-mobile",
+      "path": "smart-kitchen-mobile"
+    },
+    {
+      "name": "DO_AN",
+      "path": "DO_AN"
+    }
+  ],
+  "settings": {}
+}

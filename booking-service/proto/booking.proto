@@ -1,0 +1,126 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "booking-service/proto/pb";
+
+service BookingService {
+  rpc UpdateBookingStatus(UpdateBookingStatusRequest) returns (UpdateBookingStatusResponse);
+  rpc CreateTickets(CreateTicketsRequest) returns (CreateTicketsResponse);
+  rpc GetRevenueByTime(GetRevenueByTimeRequest) returns (GetRevenueByTimeResponse);
+  rpc GetRevenueByShowtime(GetRevenueByShowtimeRequest) returns (GetRevenueByShowtimeResponse);
+  rpc GetRevenueByBookingType(GetRevenueByBookingTypeRequest) returns (GetRevenueByBookingTypeResponse);
+  rpc GetTotalRevenue(GetTotalRevenueRequest) returns (GetTotalRevenueResponse);
+}
+
+message UpdateBookingStatusRequest {
+  string booking_id = 1;
+  string status = 2;
+}
+
+message UpdateBookingStatusResponse {
+  bool success = 1;
+  string message = 2;
+  string user_id = 3;
+  string booking_id = 4;
+}
+
+message CreateTicketsRequest {
+  string booking_id = 1;
+  repeated string seat_ids = 2;
+}
+
+message CreateTicketsResponse {
+  bool success = 1;
+  string message = 2;
+  int32 tickets_created = 3;
+  BookingDetails booking_details = 4;
+}
+
+message BookingDetails {
+  string booking_id = 1;
+  repeated SeatInfo seats = 2;
+  ShowtimeInfo showtime = 3;
+}
+
+message SeatInfo {
+  string seat_row = 1;
+  int32 seat_number = 2;
+  string seat_type = 3;
+}
+
+message ShowtimeInfo {
+  string showtime_id = 1;
+  string start_time = 2;
+  string movie_name = 3;
+  string room_name = 4;
+}
+
+// Analytics messages
+message GetRevenueByTimeRequest {
+  string start_date = 1;
+  string end_date = 2;
+  int32 limit = 3;
+}
+
+message RevenueByTime {
+  string time_period = 1;
+  double total_revenue = 2;
+  int32 total_bookings = 3;
+  double avg_booking_value = 4;
+}
+
+message GetRevenueByTimeResponse {
+  bool success = 1;
+  string message = 2;
+  repeated RevenueByTime data = 3;
+}
+
+message GetRevenueByShowtimeRequest {
+  string start_date = 1;
+  string end_date = 2;
+  string showtime_id = 3;
+  int32 limit = 4;
+}
+
+message RevenueByShowtime {
+  string showtime_id = 1;
+  double total_revenue = 2;
+  int32 total_bookings = 3;
+  int32 total_tickets = 4;
+}
+
+message GetRevenueByShowtimeResponse {
+  bool success = 1;
+  string message = 2;
+  repeated RevenueByShowtime data = 3;
+}
+
+message GetRevenueByBookingTypeRequest {
+  string start_date = 1;
+  string end_date = 2;
+}
+
+message RevenueByBookingType {
+  string booking_type = 1;
+  double total_revenue = 2;
+  int32 total_bookings = 3;
+  double percentage = 4;
+}
+
+message GetRevenueByBookingTypeResponse {
+  bool success = 1;
+  string message = 2;
+  repeated RevenueByBookingType data = 3;
+}
+
+message GetTotalRevenueRequest {
+  string start_date = 1;
+  string end_date = 2;
+}
+
+message GetTotalRevenueResponse {
+  bool success = 1;
+  string message = 2;
+  double total_revenue = 3;
+}
